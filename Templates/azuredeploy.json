@@ -1,0 +1,199 @@
+﻿{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+      "_artifactsLocation": {
+        "type": "string"
+      },
+      "_artifactsLocationSasToken": {
+        "type": "securestring"
+      },
+      "environment": {
+        "type": "string",
+        "defaultValue": "DevTest",
+        "allowedValues": [
+          "DevTest",
+          "Prod"
+        ]
+      },
+      "VMDiskStoreType": {
+        "type": "string",
+        "defaultValue": "Standard_LRS",
+        "allowedValues": [
+          "Standard_LRS",
+          "Standard_ZRS",
+          "Standard_GRS",
+          "Standard_RAGRS",
+          "Premium_LRS"
+        ]
+      },
+      "virtualNetworkName": {
+        "type": "string",
+        "defaultValue": "dmmsVNet",
+        "metadata": {
+          "description": "The arbitrary name of the virtual network provisioned for the Redis cluster"
+        }
+      },
+      "addressPrefix": {
+        "type": "string",
+        "defaultValue": "10.0.0.0/16",
+        "metadata": {
+          "description": "The network address space for the virtual network"
+        }
+      },
+      "subnetName": {
+        "type": "string",
+        "defaultValue": "dmmsSubnet1",
+        "metadata": {
+          "description": "Subnet name for the virtual network that resources will be provisioned in to"
+        }
+      },
+      "subnetPrefix": {
+        "type": "string",
+        "defaultValue": "10.0.0.0/24",
+        "metadata": {
+          "description": "Address space for the virtual network subnet"
+        }
+      },
+      "nodeAddressPrefix": {
+        "type": "string",
+        "defaultValue": "10.0.0.1",
+        "metadata": {
+          "description": "The IP Address prefix that will be used for constructing a static private IP address for each node"
+        }
+      },
+      "adminUsername": {
+        "type": "securestring",
+        "metadata": {
+          "description": "Administrator user name used when provisioning virtual machines"
+        }
+      },
+      "adminPassword": {
+        "type": "string",
+        "metadata": {
+          "description": "Administrator password used when provisioning virtual machines"
+        }
+      },
+      "adDomain": {
+        "type": "string",
+        "metadata": {
+          "description": "Domain name of the AD configured on the PDC" 
+        }
+      } 
+    },
+    "variables": {
+      "vnetID": "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworkName'))]",
+      "SharedTemplateFilePath": "AzureResourceGroup2/Templates/Shared.json",
+      "SharedTemplateParametersFilePath": "AzureResourceGroup2/Templates/Shared.parameters.json",
+      "vm-resourcesTemplateFilePath": "AzureResourceGroup2/Templates/vm-resources.json",
+      "vm-resourcesTemplateParametersFilePath": "AzureResourceGroup2/Templates/vm-resources.parameters.json",
+      "vmStorageAccountName": "[concat('vmstore', uniqueString(resourceGroup().id))]",
+      "storageSettings": {
+        "vhdStorageAccountName": "[variables('vmStorageAccountName')]",
+        "vhdContainerName": "[resourceGroup().name]",
+        "vhdContainerUri": "[concat('https://', variables('vmStorageAccountName'), '.blob.core.windows.net', '/', resourceGroup().name, '/')]",
+        "vhdStorageType": "[parameters('VMDiskStoreType')]",
+        "artifactsUri": "[parameters('_artifactsLocation')]" 
+      },
+      "networkSettings": {
+        "virtualNetworkName": "[parameters('virtualNetworkName')]",
+        "addressPrefix": "[parameters('addressPrefix')]",
+        "subnetName": "[parameters('subnetName')]",
+        "subnetPrefix": "[parameters('subnetPrefix')]",
+        "subnetRef": "[concat(variables('vnetID'), '/subnets/', parameters('subnetName'))]",
+        "machineIpPrefix": "[parameters('nodeAddressPrefix')]"
+      },
+      "machineSettings": {
+        "adminUsername": "[parameters('adminUsername')]",
+        "machineNamePrefix": "dc-",
+        "osImageReference": {
+          "publisher": "MicrosoftWindowsServer",
+          "offer": "WindowsServer",
+          "sku": "2012-R2-Datacenter",
+          "version": "latest"
+        }   
+      },
+      "envDevTest": {
+        "vmSizeMember": "Basic_A0",
+        "numberOfDC": 1,
+        "vmTemplate": "[concat(parameters('_artifactsLocation'), '/', variables('vm-resourcesTemplateFilePath'))]"
+      },
+      "envProd": {
+        "vmSizeMember": "Basic_A1",
+        "numberOfDC": 2,
+        "vmTemplate": "[concat(parameters('_artifactsLocation'), '/', variables('vm-resourcesTemplateFilePath'))]"
+      },
+      "clusterSpec": "[variables(concat('env', parameters('environment')))]" 
+    },
+    "resources": [
+      {
+        "name": "Shared",
+        "type": "Microsoft.Resources/deployments",
+        "apiVersion": "2016-06-01",
+        "dependsOn": [ ],
+        "properties": {
+          "mode": "Incremental",
+          "templateLink": {
+            "uri": "[concat(parameters('_artifactsLocation'), '/', variables('SharedTemplateFilePath'))]",
+            "contentVersion": "1.0.0.0"
+          },
+          "parameters": {
+            "StorageSettings": {
+              "value": "[variables('storageSettings')]"
+            },
+            "NetworkSettings": {
+              "value": "[variables('networkSettings')]"
+            }
+          }
+        }
+      },
+      {
+        "name": "[concat('vm-resources', copyindex())]",
+        "type": "Microsoft.Resources/deployments",
+        "apiVersion": "2016-06-01",
+        "dependsOn": [
+          "[concat('Microsoft.Resources/deployments/', 'Shared')]"
+        ],
+        "copy": {
+          "name": "dcloop",
+          "count": "[variables('clusterSpec').numberOfDC]"
+        },
+        "properties": {
+          "mode": "Incremental",
+          "templateLink": {
+            "uri": "[variables('clusterSpec').vmTemplate]",
+            "contentVersion": "1.0.0.0"
+          },
+          "parameters": {
+            "StorageSettings": {
+              "value": "[variables('storageSettings')]"
+            },
+            "NetworkSettings": {
+              "value": "[variables('networkSettings')]"
+            },
+            "MachineSettings": {
+              "value": {
+                "adminUsername": "[variables('machineSettings').adminUsername]",
+                "machineNamePrefix": "[variables('machineSettings').machineNamePrefix]",
+                "osImageReference": "[variables('machineSettings').osImageReference]",
+                "vmSize": "[variables('clusterSpec').vmSizeMember]",
+                "machineIndex": "[copyindex()]"
+              }
+            },
+            "AdminPassword": {
+              "value": "[parameters('adminPassword')]"
+            },
+            "DomainInfo": {
+              "value": {
+                "domain": "[parameters('adDomain')]",
+                "dscFunction": "CreateADPDC.ps1\\CreateADPDC",
+                "dscModule": "dsc.zip"
+              }
+            }
+          }
+        }
+      }
+    ],
+    "outputs": {
+    }
+  }

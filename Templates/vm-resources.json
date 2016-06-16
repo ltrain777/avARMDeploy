@@ -1,0 +1,132 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+      "StorageSettings": {
+        "type": "object",
+        "metadata": {
+          "Description": "Storage settings object"
+        }
+      },
+      "NetworkSettings": {
+        "type": "object",
+        "metadata": {
+          "Description": "Network settings object"
+        }
+      },
+      "MachineSettings": {
+        "type": "object",
+        "metadata": {
+          "Description": "Machine settings object"
+        }
+      },
+      "AdminPassword": {
+        "type": "securestring",
+        "metadata": {
+          "Description": "Administrator password used when provisioning virtual machines"
+        }
+      },
+      "DomainInfo": {
+        "type": "object",
+        "metadata": {
+          "description": "AD Domain object" 
+        }
+      } 
+    },
+    "variables": {
+    },
+  "resources": [
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "name": "[concat('nicMember', parameters('MachineSettings').machineIndex)]",
+      "apiVersion": "2015-06-15",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Static",
+              "privateIPAddress": "[concat(parameters('NetworkSettings').machineIpPrefix, parameters('MachineSettings').machineIndex)]",
+              "subnet": {
+                "id": "[parameters('NetworkSettings').subnetRef]"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines",
+      "name": "[concat('vmMember', parameters('MachineSettings').machineIndex)]",
+      "apiVersion": "2015-06-15",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[concat('Microsoft.Network/networkInterfaces/', 'nicMember', parameters('MachineSettings').machineIndex)]"
+      ],
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[parameters('MachineSettings').vmSize]"
+        },
+        "osProfile": {
+          "computerName": "[concat(parameters('MachineSettings').machineNamePrefix, 'member', parameters('MachineSettings').machineIndex)]",
+          "adminUsername": "[parameters('MachineSettings').adminUsername]",
+          "adminPassword": "[parameters('AdminPassword')]"
+        },
+        "storageProfile": {
+          "imageReference": "[parameters('MachineSettings').osImageReference]",
+          "osDisk": {
+            "name": "osdisk",
+            "vhd": {
+              "uri": "[concat(parameters('StorageSettings').vhdContainerUri, 'node-os-disk' , parameters('MachineSettings').machineIndex, '.vhd')]"
+            },
+            "caching": "ReadWrite",
+            "createOption": "FromImage"
+          }
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces',concat('nicMember', parameters('MachineSettings').machineIndex))]"
+            }
+          ]
+        }
+      },
+      "resources": [
+        {
+          "type": "Microsoft.Compute/virtualMachines/extensions",
+          "name": "[concat('vmMember', parameters('MachineSettings').machineIndex,'/CreateADForest')]",
+          "apiVersion": "2015-06-15",
+          "location": "[resourceGroup().location]",
+          "dependsOn": [
+            "[resourceId('Microsoft.Compute/virtualMachines',concat('vmMember', parameters('MachineSettings').machineIndex))]"
+          ],
+          "properties": {
+            "publisher": "Microsoft.Powershell",
+            "type": "DSC",
+            "typeHandlerVersion": "2.6",
+            "autoUpgradeMinorVersion": true,
+            "settings": {
+              "ModulesUrl": "[concat(parameters('StorageSettings').artifactsUri, '/', parameters('DomainInfo').dscModule)]",
+              "ConfigurationFunction": "[parameters('DomainInfo').dscFunction]",
+              "Properties": {
+                "value": "[parameters('DomainInfo').domain]",
+                "AdminCreds": {
+                  "UserName": "[parameters('MachineSettings').adminUsername]",
+                  "Password": "PrivateSettingsRef:AdminPassword"
+                }
+              }             
+            },
+            "protectedSettings": {
+              "Items": {
+                "AdminPassword": "[parameters('AdminPassword')]" 
+              } 
+            }
+          }
+        }
+      ]
+    }
+  ],
+    "outputs": {
+    }
+}

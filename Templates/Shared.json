@@ -1,0 +1,63 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+      "NetworkSettings": {
+        "type": "object",
+        "metadata": {
+          "Description": "Network Settings object"
+        }
+      },
+      "StorageSettings": {
+        "type": "object",
+        "metadata": {
+          "Description": "Storage Settings object"
+        }
+      }
+    },
+    "variables": {
+    },
+    "resources": [
+      {
+        "name": "[parameters('NetworkSettings').virtualNetworkName]",
+        "type": "Microsoft.Network/virtualNetworks",
+        "location": "[resourceGroup().location]",
+        "apiVersion": "2016-06-01",
+        "dependsOn": [ ],
+        "tags": {
+          "displayName": "[parameters('NetworkSettings').virtualNetworkName]"
+        },
+        "properties": {
+          "addressSpace": {
+            "addressPrefixes": [
+              "[parameters('NetworkSettings').addressPrefix]"
+            ]
+          },
+          "subnets": [
+            {
+              "name": "[parameters('NetworkSettings').subnetName]",
+              "properties": {
+                "addressPrefix": "[parameters('NetworkSettings').subnetPrefix]"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "[parameters('StorageSettings').vhdStorageAccountName]",
+        "type": "Microsoft.Storage/storageAccounts",
+        "location": "[resourceGroup().location]",
+        "apiVersion": "2015-06-15",
+        "dependsOn": [ ],
+        "tags": {
+          "displayName": "[parameters('StorageSettings').vhdStorageAccountName]"
+        },
+        "properties": {
+          "accountType": "[parameters('StorageSettings').vhdStorageType]"
+        }
+      }
+        
+    ],
+    "outputs": {
+    }
+}
