@@ -109,12 +109,12 @@
         }   
       },
       "envDevTest": {
-        "vmSizeMember": "Basic_A0",
+        "vmSizeMember": "Basic_A2",
         "numberOfDC": 1,
         "vmTemplate": "[concat(parameters('_artifactsLocation'), '/', variables('vm-resourcesTemplateFilePath'))]"
       },
       "envProd": {
-        "vmSizeMember": "Basic_A1",
+        "vmSizeMember": "Basic_A2",
         "numberOfDC": 2,
         "vmTemplate": "[concat(parameters('_artifactsLocation'), '/', variables('vm-resourcesTemplateFilePath'))]"
       },
