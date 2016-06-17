@@ -31,102 +31,119 @@
         "metadata": {
           "description": "AD Domain object" 
         }
-      } 
+      }
     },
     "variables": {
+      "PublicIPName": "MyPublicIP"
     },
-  "resources": [
-    {
-      "type": "Microsoft.Network/networkInterfaces",
-      "name": "[concat('nicMember', parameters('MachineSettings').machineIndex)]",
-      "apiVersion": "2015-06-15",
-      "location": "[resourceGroup().location]",
-      "properties": {
-        "ipConfigurations": [
+    "resources": [
+      {
+          "name": "[variables('PublicIPName')]",
+          "type": "Microsoft.Network/publicIPAddresses",
+          "location": "[resourceGroup().location]",
+          "apiVersion": "2015-06-15",
+          "dependsOn": [ ],
+          "tags": {
+              "displayName": "PublicIP"
+          },
+          "properties": {
+              "publicIPAllocationMethod": "Dynamic"
+          }
+      },
+      {
+        "type": "Microsoft.Network/networkInterfaces",
+        "name": "[concat('nicMember', parameters('MachineSettings').machineIndex)]",
+        "apiVersion": "2015-06-15",
+        "location": "[resourceGroup().location]",
+        "properties": {
+          "ipConfigurations": [
+            {
+              "name": "ipconfig1",
+              "properties": {
+                "privateIPAllocationMethod": "Static",
+                "privateIPAddress": "[concat(parameters('NetworkSettings').machineIpPrefix, parameters('MachineSettings').machineIndex)]",
+                "subnet": {
+                  "id": "[parameters('NetworkSettings').subnetRef]"
+                },
+                "publicIPAddress": {
+                  "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('PublicIPName'))]"
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "type": "Microsoft.Compute/virtualMachines",
+        "name": "[concat('vmMember', parameters('MachineSettings').machineIndex)]",
+        "apiVersion": "2015-06-15",
+        "location": "[resourceGroup().location]",
+        "dependsOn": [
+          "[concat('Microsoft.Network/networkInterfaces/', 'nicMember', parameters('MachineSettings').machineIndex)]"
+        ],
+        "properties": {
+          "hardwareProfile": {
+            "vmSize": "[parameters('MachineSettings').vmSize]"
+          },
+          "osProfile": {
+            "computerName": "[concat(parameters('MachineSettings').machineNamePrefix, 'member', parameters('MachineSettings').machineIndex)]",
+            "adminUsername": "[parameters('MachineSettings').adminUsername]",
+            "adminPassword": "[parameters('AdminPassword')]"
+          },
+          "storageProfile": {
+            "imageReference": "[parameters('MachineSettings').osImageReference]",
+            "osDisk": {
+              "name": "osdisk",
+              "vhd": {
+                "uri": "[concat(parameters('StorageSettings').vhdContainerUri, 'node-os-disk' , parameters('MachineSettings').machineIndex, '.vhd')]"
+              },
+              "caching": "ReadWrite",
+              "createOption": "FromImage"
+            }
+          },
+          "networkProfile": {
+            "networkInterfaces": [
+              {
+                "id": "[resourceId('Microsoft.Network/networkInterfaces',concat('nicMember', parameters('MachineSettings').machineIndex))]"
+              }
+            ]
+          }
+        },
+        "resources": [
           {
-            "name": "ipconfig1",
+            "type": "Microsoft.Compute/virtualMachines/extensions",
+            "name": "[concat('vmMember', parameters('MachineSettings').machineIndex,'/CreateADForest')]",
+            "apiVersion": "2015-06-15",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+              "[resourceId('Microsoft.Compute/virtualMachines',concat('vmMember', parameters('MachineSettings').machineIndex))]"
+            ],
             "properties": {
-              "privateIPAllocationMethod": "Static",
-              "privateIPAddress": "[concat(parameters('NetworkSettings').machineIpPrefix, parameters('MachineSettings').machineIndex)]",
-              "subnet": {
-                "id": "[parameters('NetworkSettings').subnetRef]"
+              "publisher": "Microsoft.Powershell",
+              "type": "DSC",
+              "typeHandlerVersion": "2.6",
+              "autoUpgradeMinorVersion": true,
+              "settings": {
+                "ModulesUrl": "[concat(parameters('StorageSettings').artifactsUri, '/', parameters('DomainInfo').dscModule)]",
+                "ConfigurationFunction": "[parameters('DomainInfo').dscFunction]",
+                "Properties": {
+                  "value": "[parameters('DomainInfo').domain]",
+                  "AdminCreds": {
+                    "UserName": "[parameters('MachineSettings').adminUsername]",
+                    "Password": "PrivateSettingsRef:AdminPassword"
+                  }
+                }             
+              },
+              "protectedSettings": {
+                "Items": {
+                  "AdminPassword": "[parameters('AdminPassword')]" 
+                } 
               }
             }
           }
         ]
       }
-    },
-    {
-      "type": "Microsoft.Compute/virtualMachines",
-      "name": "[concat('vmMember', parameters('MachineSettings').machineIndex)]",
-      "apiVersion": "2015-06-15",
-      "location": "[resourceGroup().location]",
-      "dependsOn": [
-        "[concat('Microsoft.Network/networkInterfaces/', 'nicMember', parameters('MachineSettings').machineIndex)]"
-      ],
-      "properties": {
-        "hardwareProfile": {
-          "vmSize": "[parameters('MachineSettings').vmSize]"
-        },
-        "osProfile": {
-          "computerName": "[concat(parameters('MachineSettings').machineNamePrefix, 'member', parameters('MachineSettings').machineIndex)]",
-          "adminUsername": "[parameters('MachineSettings').adminUsername]",
-          "adminPassword": "[parameters('AdminPassword')]"
-        },
-        "storageProfile": {
-          "imageReference": "[parameters('MachineSettings').osImageReference]",
-          "osDisk": {
-            "name": "osdisk",
-            "vhd": {
-              "uri": "[concat(parameters('StorageSettings').vhdContainerUri, 'node-os-disk' , parameters('MachineSettings').machineIndex, '.vhd')]"
-            },
-            "caching": "ReadWrite",
-            "createOption": "FromImage"
-          }
-        },
-        "networkProfile": {
-          "networkInterfaces": [
-            {
-              "id": "[resourceId('Microsoft.Network/networkInterfaces',concat('nicMember', parameters('MachineSettings').machineIndex))]"
-            }
-          ]
-        }
-      },
-      "resources": [
-        {
-          "type": "Microsoft.Compute/virtualMachines/extensions",
-          "name": "[concat('vmMember', parameters('MachineSettings').machineIndex,'/CreateADForest')]",
-          "apiVersion": "2015-06-15",
-          "location": "[resourceGroup().location]",
-          "dependsOn": [
-            "[resourceId('Microsoft.Compute/virtualMachines',concat('vmMember', parameters('MachineSettings').machineIndex))]"
-          ],
-          "properties": {
-            "publisher": "Microsoft.Powershell",
-            "type": "DSC",
-            "typeHandlerVersion": "2.6",
-            "autoUpgradeMinorVersion": true,
-            "settings": {
-              "ModulesUrl": "[concat(parameters('StorageSettings').artifactsUri, '/', parameters('DomainInfo').dscModule)]",
-              "ConfigurationFunction": "[parameters('DomainInfo').dscFunction]",
-              "Properties": {
-                "value": "[parameters('DomainInfo').domain]",
-                "AdminCreds": {
-                  "UserName": "[parameters('MachineSettings').adminUsername]",
-                  "Password": "PrivateSettingsRef:AdminPassword"
-                }
-              }             
-            },
-            "protectedSettings": {
-              "Items": {
-                "AdminPassword": "[parameters('AdminPassword')]" 
-              } 
-            }
-          }
-        }
-      ]
-    }
-  ],
+    ],
     "outputs": {
     }
 }
