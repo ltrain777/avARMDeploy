@@ -83,10 +83,8 @@
     },
     "variables": {
       "vnetID": "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworkName'))]",
-      "SharedTemplateFilePath": "AzureResourceGroup2/Templates/Shared.json",
-      "SharedTemplateParametersFilePath": "AzureResourceGroup2/Templates/Shared.parameters.json",
-      "vm-resourcesTemplateFilePath": "AzureResourceGroup2/Templates/vm-resources.json",
-      "vm-resourcesTemplateParametersFilePath": "AzureResourceGroup2/Templates/vm-resources.parameters.json",
+      "SharedTemplateFilePath": "Templates/Shared.json",
+      "vm-resourcesTemplateFilePath": "Templates/vm-resources.json",
       "vmStorageAccountName": "[concat('vmstore', uniqueString(resourceGroup().id))]",
       "storageSettings": {
         "vhdStorageAccountName": "[variables('vmStorageAccountName')]",
