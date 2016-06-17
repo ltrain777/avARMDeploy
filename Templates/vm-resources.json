@@ -55,6 +55,9 @@
         "name": "[concat('nicMember', parameters('MachineSettings').machineIndex)]",
         "apiVersion": "2015-06-15",
         "location": "[resourceGroup().location]",
+        "dependsOn": [
+          "[concat('Microsoft.Network/publicIPAddresses', variables('PublicIPName'))]"
+        ],
         "properties": {
           "ipConfigurations": [
             {
