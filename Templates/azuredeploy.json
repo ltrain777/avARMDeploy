@@ -86,7 +86,7 @@
       "storageSettings": {
         "vhdStorageAccountName": "[variables('vmStorageAccountName')]",
         "vhdContainerName": "[resourceGroup().name]",
-        "vhdContainerUri": "[concat('https://', variables('vmStorageAccountName'), '.blob.core.windows.net', '/', resourceGroup().name, '/')]",
+        "vhdContainerUri": "[concat('https://', variables('vmStorageAccountName'), '.blob.core.windows.net', '/', toLower(resourceGroup().name), '/')]",
         "vhdStorageType": "[parameters('VMDiskStoreType')]",
         "artifactsUri": "[parameters('_artifactsLocation')]" 
       },
