@@ -3,7 +3,11 @@
     "contentVersion": "1.0.0.0",
     "parameters": {
       "_artifactsLocation": {
-        "type": "string"
+        "type": "string",
+        "defaultValue": "https://raw.githubusercontent.com/ltrain777/avARMDeploy/master",
+        "metadata": {
+          "description": "Base URI of templates and DSC resources"
+        }
       },
       "environment": {
         "type": "string",
@@ -60,13 +64,13 @@
         }
       },
       "adminUsername": {
-        "type": "securestring",
+        "type": "string",
         "metadata": {
           "description": "Administrator user name used when provisioning virtual machines"
         }
       },
       "adminPassword": {
-        "type": "string",
+        "type": "securestring",
         "metadata": {
           "description": "Administrator password used when provisioning virtual machines"
         }
@@ -114,7 +118,7 @@
         "vmTemplate": "[concat(parameters('_artifactsLocation'), '/', variables('vm-resourcesTemplateFilePath'))]"
       },
       "envProd": {
-        "vmSizeMember": "Basic_A2",
+        "vmSizeMember": "Standar_A2",
         "numberOfDC": 2,
         "vmTemplate": "[concat(parameters('_artifactsLocation'), '/', variables('vm-resourcesTemplateFilePath'))]"
       },
