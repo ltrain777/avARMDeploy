@@ -5,9 +5,6 @@
       "_artifactsLocation": {
         "type": "string"
       },
-      "_artifactsLocationSasToken": {
-        "type": "securestring"
-      },
       "environment": {
         "type": "string",
         "defaultValue": "DevTest",
