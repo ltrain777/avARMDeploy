@@ -127,7 +127,7 @@
                 "ModulesUrl": "[concat(parameters('StorageSettings').artifactsUri, '/', parameters('DomainInfo').dscModule)]",
                 "ConfigurationFunction": "[parameters('DomainInfo').dscFunction]",
                 "Properties": {
-                  "value": "[parameters('DomainInfo').domain]",
+                  "DomainName": "[parameters('DomainInfo').domain]",
                   "AdminCreds": {
                     "UserName": "[parameters('MachineSettings').adminUsername]",
                     "Password": "PrivateSettingsRef:AdminPassword"
